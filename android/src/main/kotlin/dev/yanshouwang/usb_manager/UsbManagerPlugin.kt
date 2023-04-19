@@ -1,35 +1,36 @@
 package dev.yanshouwang.usb_manager
 
+import android.content.Context
+import android.hardware.usb.UsbManager
 import androidx.annotation.NonNull
-
 import io.flutter.embedding.engine.plugins.FlutterPlugin
-import io.flutter.plugin.common.MethodCall
-import io.flutter.plugin.common.MethodChannel
-import io.flutter.plugin.common.MethodChannel.MethodCallHandler
-import io.flutter.plugin.common.MethodChannel.Result
+
+const val KEY_CONTEXT = "KEY_CONTEXT"
+
+val instances = mutableMapOf<String, Any>()
+
+val context get() = instances[KEY_CONTEXT] as Context
+val usbManager get() = context.getSystemService(Context.USB_SERVICE) as UsbManager
 
 /** UsbManagerPlugin */
-class UsbManagerPlugin: FlutterPlugin, MethodCallHandler {
-  /// The MethodChannel that will the communication between Flutter and native Android
-  ///
-  /// This local reference serves to register the plugin with the Flutter Engine and unregister it
-  /// when the Flutter Engine is detached from the Activity
-  private lateinit var channel : MethodChannel
+class UsbManagerPlugin : FlutterPlugin {
+    override fun onAttachedToEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
+        val binaryMessenger = binding.binaryMessenger
 
-  override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
-    channel = MethodChannel(flutterPluginBinding.binaryMessenger, "usb_manager")
-    channel.setMethodCallHandler(this)
-  }
+        instances[KEY_CONTEXT] = binding.applicationContext
 
-  override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
-    if (call.method == "getPlatformVersion") {
-      result.success("Android ${android.os.Build.VERSION.RELEASE}")
-    } else {
-      result.notImplemented()
+        UsbManagerHostApi.setUp(binaryMessenger, UsbManagerApi)
+        UsbDeviceHostApi.setUp(binaryMessenger, UsbDeviceApi)
+        UsbConfigurationHostApi.setUp(binaryMessenger, UsbConfigurationApi)
     }
-  }
 
-  override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
-    channel.setMethodCallHandler(null)
-  }
+    override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
+        val binaryMessenger = binding.binaryMessenger
+
+        UsbManagerHostApi.setUp(binaryMessenger, null)
+        UsbDeviceHostApi.setUp(binaryMessenger, null)
+        UsbConfigurationHostApi.setUp(binaryMessenger, null)
+
+        instances.remove(KEY_CONTEXT)
+    }
 }
